@@ -47,13 +47,13 @@ void pwm_init()
     350 = (3.3333\times10^{-6} / TOP)
     TOP = 9009; ?
     */
-   TCA0.SINGLE.PER = 9794;
+   TCA0.SINGLE.PER = 9795;
    /* Set the duty cycle
         11% duty cycle
             CMPx = TCA0.SINGLE.PER * (duty cycle / 100);
             CMP1 = VAR //
    */
-  TCA0.SINGLE.CMP1 = 1522;
+  TCA0.SINGLE.CMP1 = 1523;
   // Set up the timer to operate with compare to CMP0
   PORTB.DIRSET = PIN0_bm;
   TCA0.SINGLE.CMP0 = 4761;
