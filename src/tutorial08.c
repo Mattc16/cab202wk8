@@ -30,21 +30,34 @@
  * Example: If your student number were n12345678 you should configure 
  *          TCA0 to produce a 370 Hz, 18 % duty cycle output.
  */
-
-void pwm_init() {
-    PORTB.OUTSET = PIN1_bm;
-    PORTB.DIRSET = PIN1_bm;
-
-    TCA0.SINGLE.CTRLA = TCA_SINGLE_CLKSEL_DIV1_gc;
-    
-    TCA0.SINGLE.CTRLB |= TCA_SINGLE_WGMODE_SINGLESLOPE_gc;
+void pwm_init()
+{
+    PORTB.OUTSET = PIN1_bm; // DISP EN disabled
+    PORTB.DIRSET = PIN1_bm; // DISP EN as output
+    TCA0.SPLIT.CTRLA = TCA_SINGLE_CLKSEL_DIV1_gc; // No prescaler
+    TCA0.SINGLE.CTRLB |= TCA_SINGLE_WGMODE_SINGLESLOPE_gc ; // Set timer to single slope mode
+    /* Set timer to compare CMP1, 
+    Make waveform output match corresponding pin (CMPx).
+    DISP EN connected to W01, enable compare for CMP1
+    */
     TCA0.SINGLE.CTRLB |= TCA_SINGLE_CMP1EN_bm;
-    
-    TCA0.SINGLE.PER = 882;
-
-    TCA0.SINGLE.CMP1 = 141;
-    TCA0.SINGLE.CTRLA |= TCA_SINGLE_ENABLE_bm;
-
+    // TCA0.SINGLE.CMP0 = TCA_SINGLE_CMP1EN_bm;
+    /* Set the frequency (350 Hz)
+    f_pwm = (1 / TOP * T_clk, timer)
+    350 = (3.3333\times10^{-6} / TOP)
+    TOP = 9009; ?
+    */
+   TCA0.SINGLE.PER = 9794;
+   /* Set the duty cycle
+        11% duty cycle
+            CMPx = TCA0.SINGLE.PER * (duty cycle / 100);
+            CMP1 = VAR //
+   */
+  TCA0.SINGLE.CMP1 = 1522;
+  // Set up the timer to operate with compare to CMP0
+  PORTB.DIRSET = PIN0_bm;
+  TCA0.SINGLE.CMP0 = 4761;
+  TCA0.SINGLE.CTRLA = TCA_SINGLE_ENABLE_bm; // Enable the timer, do this last when configuring one
 }
 
 // Write your code for Ex 8.0 above this line.
@@ -59,22 +72,19 @@ void pwm_init() {
  * configured to sample the voltage on the POT net, be put
  * in free-running mode, and started.
  */
-
-void adc_init() {
-    ADC0.CTRLA = ADC_ENABLE_bm;
+void adc_init()
+{
+    ADC0.CTRLA = ADC_ENABLE_bm; // Enables the ADC
     ADC0.CTRLB = ADC_PRESC_DIV2_gc;
     ADC0.CTRLC = ADC_TIMEBASE4_bm | ADC_REFSEL_VDD_gc;
-    ADC0.CTRLE = 64;
-    ADC0.CTRLF = ADC_FREERUN_bm;
-    ADC0.CTRLF |= ADC_LEFTADJ_bm;
-
-    ADC0.MUXPOS = ADC_MUXPOS_AIN12_gc;
-
-    ADC0.COMMAND |= ADC_MODE_SINGLE_8BIT_gc;
-
-    ADC0.COMMAND |= ADC_START_IMMEDIATE_gc;
-
-}
+    ADC0.CTRLE = 64; // Sample duration
+    ADC0.CTRLF = ADC_FREERUN_bm; // Sets the ADC xto free running mode
+    ADC0.CTRLF |= ADC_LEFTADJ_bm; // Left adjusts the contents of the result
+    /* Sets the ADC to read from the pin connected to the potentiometer */
+    ADC0.MUXPOS = ADC_MUXPOS_AIN2_gc;
+    ADC0.COMMAND |= ADC_MODE_SINGLE_8BIT_gc; // Set resolution of the result
+    ADC0.COMMAND |= ADC_START_IMMEDIATE_gc; // Start the ADC
+}   
 
 // Write your code for Ex 8.1 above this line.
 
@@ -100,11 +110,9 @@ int main(void) {
      * and you should be able to test your ADC configuration via the serial
      * terminal.
      */
+
     pwm_init();
     adc_init();
-
-
-
     // Write your code for Ex 8.2 above this line.
 
     printf("Turn the potentiometer R1 fully counter-clockwise, then press S4.\n");
@@ -129,15 +137,14 @@ int main(void) {
          * clockwise.
          */
 
-        uint32_t b = ADC0.RESULT3;
-        TCA0.SINGLE.CMP1BUF = (255 - b) * 882 / 255;
-
-
 
         // Write your code for Ex 8.3 above this line.
 
-
-
+        result = ADC0.RESULT;
+        // Translate 8 bit value from within result
+        // RESULT will be between 0 and 255 (potentiometer 0% to 100% on);
+        // CMP1 wll need to be between 0 and 9514
+        TCA0.SINGLE.CMP1BUF = (255 - result) * 9523.71428 / 255;
         /***
          * Ex 8.4
          * 
@@ -152,13 +159,14 @@ int main(void) {
          * 
          * TIP: Note that the frequency specified above is the same as for Ex 8.0. 
          */
-        if (result > 223) {
-            TCA0.SINGLE.CTRLB |= TCA_SINGLE_CMP1EN_bm;
-        }else {
-            TCA0.SINGLE.CTRLB &= ~TCA_SINGLE_CMP1EN_bm;
+
+        if (result > 223) // 223  (87.5% of 255)
+        {
+            TCA0.SINGLE.CTRLB |= TCA_SINGLE_CMP0_bm;    // Enable PWM on pin connected to 
+        } else 
+        {
+            TCA0.SINGLE.CTRLB &= ~TCA_SINGLE_CMP0_bm; // Disable PWM 
         }
-
-
         // Write your code for Ex 8.4 above this line.
         
 
